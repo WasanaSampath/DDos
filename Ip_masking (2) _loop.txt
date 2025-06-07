@@ -1,0 +1,59 @@
+import asyncio
+import requests
+import random
+import logging
+from aiohttp import ClientSession, ClientError
+
+# Set up logging to track the chaos
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Proxy pool - replace with your own high-speed proxies
+proxies = [
+    'http://proxy1:port',
+    'http://proxy2:port',
+    'http://proxy3:port',
+    # Add more proxies here (100+ recommended for smooth rotation)
+]
+
+async def fetch_ip(session, proxy):
+    """Fetch current IP through a proxy."""
+    try:
+        async with session.get('https://api.ipify.org?format=json', 
+                              proxy=proxy, 
+                              timeout=2) as response:
+            if response.status == 200:
+                data = await response.json()
+                ip = data['ip']
+                logger.info(f"Switched to IP: {ip} via proxy {proxy}")
+                return ip
+            else:
+                logger.error(f"Proxy {proxy} failed with status {response.status}")
+                return None
+    except ClientError as e:
+        logger.error(f"Proxy {proxy} crashed: {str(e)}")
+        return None
+
+async def cycle_proxies():
+    """Cycle through proxies at 3 switches per second."""
+    async with ClientSession() as session:
+        while True:
+            proxy = random.choice(proxies)
+            logger.info(f"Attempting proxy: {proxy}")
+            ip = await fetch_ip(session, proxy)
+            if ip:
+                logger.info(f"Success! Current IP: {ip}")
+            else:
+                logger.warning(f"Proxy {proxy} failed, moving to next...")
+            await asyncio.sleep(0.333)  # 3 switches per second
+
+async def main():
+    """Main function to handle the proxy cycling."""
+    try:
+        await cycle_proxies()
+    except KeyboardInterrupt:
+        logger.info("Shutting down the chaos...")
+
+if __name__ == "__main__":
+    logger.info("Starting the IP masking rampage...")
+    asyncio.run(main())
